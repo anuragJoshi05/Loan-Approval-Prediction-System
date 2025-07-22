@@ -1,4 +1,4 @@
-# Loan Prediction System
+# Loan Approval Prediction System
 
 A complete machine learning pipeline for predicting loan approvals using advanced feature engineering, rigorous model comparison, and a production-ready web application.
 
