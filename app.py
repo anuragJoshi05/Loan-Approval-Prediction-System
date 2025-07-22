@@ -1,127 +1,213 @@
 import streamlit as st
+import joblib
 import numpy as np
 import pandas as pd
-import joblib
+import matplotlib.pyplot as plt
 
-# Load the model and encoders (adjust file names as needed)
-model = joblib.load('best_loan_prediction_model.joblib')
-# Suppose you have label encoders or mappings as dictionaries
-with open('feature_mappings.joblib', 'rb') as f:
-    feature_mappings = joblib.load(f)
+# Dark theme configuration
+st.set_page_config(
+    page_title="Loan Prediction System",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-st.set_page_config(page_title="Loan Eligibility Assessment", layout="centered")
-
-# CSS for a clean, minimalist "Google-like" look
+# Custom CSS for a minimal Google-like dark theme
 st.markdown("""
     <style>
-        html, body, [class*="css"]  {
-            font-family: 'Roboto', sans-serif;
-            background-color: #fafbfc;
+        html, body, [class*="css"] {
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', sans-serif;
         }
-        .main .block-container {
-            padding-top: 3rem;
-            padding-bottom: 3rem;
-        }
-        .stButton>button {
-            width: 100%;
-            font-weight: 500;
-            background-color: #1a73e8;
-            color: white;
-            border-radius: 5px;
-            padding: 10px 0;
-        }
-        .stTextInput>div>div>input, .stNumberInput>div>div>input {
-            background-color: #fff;
-            border-radius: 4px;
-            border: 1px solid #dadce0;
-        }
-        .stSelectbox>div>div>div {
-            border-radius: 4px;
-            border: 1px solid #dadce0;
-        }
-        .prediction-card {
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            background: #fff;
-            box-shadow: 0 2px 12px rgba(60,64,67,0.1);
-            padding: 2rem;
+        .main-header {
+            font-size: 2.5rem;
+            color: #90caf9;
             text-align: center;
-            margin-top: 2rem;
+            margin-bottom: 2rem;
         }
-        .result-approved {
-            color: #1a73e8;
-            font-weight: 600;
-            font-size: 2rem;
+        .prediction-box {
+            padding: 1rem;
+            border-radius: 10px;
+            margin: 1rem 0;
         }
-        .result-rejected {
-            color: #d50000;
-            font-weight: 600;
-            font-size: 2rem;
+        .approved {
+            background-color: #1b5e20;
+            color: #ffffff;
         }
-        .confidence-score {
-            font-size: 1.2rem;
-            color: #555;
-            margin-top: .5rem;
+        .rejected {
+            background-color: #b71c1c;
+            color: #ffffff;
+        }
+        .metrics-box {
+            background-color: #1e1e1e;
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 4px solid #90caf9;
         }
     </style>
 """, unsafe_allow_html=True)
 
-st.title("Loan Eligibility Assessment")
+@st.cache_resource
+def load_model():
+    try:
+        model = joblib.load('best_loan_prediction_model.joblib')
+        feature_names = joblib.load('feature_names.joblib')
+        preprocessing_mappings = joblib.load('preprocessing_mappings.joblib')
+        return model, feature_names, preprocessing_mappings
+    except FileNotFoundError:
+        st.error("Model files not found. Ensure model and preprocessing files exist.")
+        st.stop()
 
-st.write("Please provide accurate financial and personal details to assess loan eligibility.")
+def make_prediction(model, feature_names, preprocessing_mappings, user_input):
+    gender = preprocessing_mappings['Gender'][user_input['Gender']]
+    married = preprocessing_mappings['Married'][user_input['Married']]
+    education = preprocessing_mappings['Education'][user_input['Education']]
+    self_employed = preprocessing_mappings['Self_Employed'][user_input['Self_Employed']]
+    property_area = preprocessing_mappings['Property_Area'][user_input['Property_Area']]
 
-with st.form("loan_form"):
-    # Section 1: Applicant Details
-    st.subheader("Applicant Details")
-    gender = st.selectbox("Gender", ["Male", "Female"])
-    marital_status = st.selectbox("Marital Status", ["Married", "Single"])
-    dependents = st.selectbox("Dependents", ["0", "1", "2", "3+"])
-    education = st.selectbox("Education", ["Graduate", "Not Graduate"])
-    self_employed = st.selectbox("Self Employed", ["No", "Yes"])
-    property_area = st.selectbox("Property Area", ["Urban", "Semiurban", "Rural"])
-    
-    # Section 2: Financial Details
-    st.subheader("Financial Details")
-    applicant_income = st.number_input("Applicant Income (Monthly)", min_value=0, max_value=1000000, step=1000)
-    coapplicant_income = st.number_input("Co-applicant Income (Monthly)", min_value=0, max_value=1000000, step=1000)
-    loan_amount = st.number_input("Loan Amount (in thousands)", min_value=1, max_value=1000, step=1)
-    loan_amount_term = st.number_input("Loan Amount Term (in months)", min_value=12, max_value=480, step=12)
-    credit_history = st.selectbox("Credit History", ["1.0 (Good)", "0.0 (Bad)"])
-    
-    submitted = st.form_submit_button("Submit")
+    total_income = user_input['ApplicantIncome'] + user_input['CoapplicantIncome']
+    debt_to_income = user_input['LoanAmount'] / total_income if total_income > 0 else 0
 
-if submitted:
-    # Prepare input vector in the order used by the model
-    # Encoding categorical features
-    # Adjust keys if your model expects different column names
-    # Example: gender: {'Male':1, 'Female':0}
-    input_dict = {
-        "Gender": feature_mappings['Gender'][gender],
-        "Married": feature_mappings['Married'][marital_status],
-        "Dependents": feature_mappings['Dependents'][dependents],
-        "Education": feature_mappings['Education'][education],
-        "Self_Employed": feature_mappings['Self_Employed'][self_employed],
-        "ApplicantIncome": applicant_income,
-        "CoapplicantIncome": coapplicant_income,
-        "LoanAmount": loan_amount,
-        "Loan_Amount_Term": loan_amount_term,
-        "Credit_History": 1.0 if credit_history.startswith("1") else 0.0,
-        "Property_Area": feature_mappings['Property_Area'][property_area]
-    }
-    features_order = [
-        "Gender", "Married", "Dependents", "Education", "Self_Employed",
-        "ApplicantIncome", "CoapplicantIncome", "LoanAmount", "Loan_Amount_Term",
-        "Credit_History", "Property_Area"
-    ]
-    input_values = np.array([input_dict[key] for key in features_order]).reshape(1, -1)
-    prediction = model.predict(input_values)[0]
-    confidence = model.predict_proba(input_values)[0][int(prediction)] * 100
+    loan_amount_cat = 0 if user_input['LoanAmount'] <= 100 else 1 if user_input['LoanAmount'] <= 200 else 2
+    income_cat = 0 if user_input['ApplicantIncome'] <= 3000 else 1 if user_input['ApplicantIncome'] <= 6000 else 2
 
-    result_text = "Approved" if prediction == 1 else "Rejected"
-    result_class = "result-approved" if prediction == 1 else "result-rejected"
-    st.markdown(f"""
-        <div class="prediction-card">
-            <div class="{result_class}">{result_text}</div>
-            <div class="confidence-score">Confidence: {confidence:.2f}%</div>
-        </div>
-    """, unsafe_allow_html=True)
+    features = np.array([[gender, married, user_input['Dependents'], education, self_employed,
+                          user_input['ApplicantIncome'], user_input['CoapplicantIncome'],
+                          user_input['LoanAmount'], user_input['Loan_Amount_Term'],
+                          user_input['Credit_History'], property_area, total_income,
+                          debt_to_income, loan_amount_cat, income_cat]])
+
+    prediction = model.predict(features)[0]
+
+    if hasattr(model, 'predict_proba'):
+        probability = model.predict_proba(features)[0]
+        return prediction, probability
+    return prediction, None
+
+def main():
+    model, feature_names, preprocessing_mappings = load_model()
+
+    st.markdown('<h1 class="main-header">Loan Prediction System</h1>', unsafe_allow_html=True)
+    st.markdown("### Machine Learning-Based Loan Approval Classifier")
+
+    with st.sidebar:
+        st.header("Model Information")
+        st.markdown(f"**Algorithm:** {type(model).__name__}")
+        st.markdown(f"**Features Used:** {len(feature_names)}")
+        st.markdown("**System Status:** Operational")
+        st.header("Project Summary")
+        st.markdown("""
+        - Feature Engineered ML Pipeline  
+        - Models Compared: SVM, Random Forest, XGBoost  
+        - Real-time Prediction Interface  
+        """)
+
+    col1, col2 = st.columns([3, 2])
+
+    with col1:
+        st.header("Enter Application Details")
+        with st.form("prediction_form"):
+            st.subheader("Personal Details")
+            col1a, col1b = st.columns(2)
+            with col1a:
+                gender = st.selectbox("Gender", ["Male", "Female"])
+                married = st.selectbox("Marital Status", ["No", "Yes"])
+                dependents = st.selectbox("Number of Dependents", [0, 1, 2, 4])
+            with col1b:
+                education = st.selectbox("Education", ["Graduate", "Not Graduate"])
+                self_employed = st.selectbox("Self Employed", ["No", "Yes"])
+                property_area = st.selectbox("Property Area", ["Rural", "Semiurban", "Urban"])
+
+            st.subheader("Financial Details")
+            col2a, col2b = st.columns(2)
+            with col2a:
+                applicant_income = st.number_input("Applicant Income (₹)", min_value=0, value=5000, step=1000)
+                coapplicant_income = st.number_input("Co-applicant Income (₹)", min_value=0, value=0, step=1000)
+            with col2b:
+                loan_amount = st.number_input("Loan Amount (₹ thousands)", min_value=0, value=150, step=10)
+                loan_term = st.selectbox("Loan Term (months)", [12, 36, 60, 84, 120, 180, 240, 300, 360, 480], index=8)
+
+            st.subheader("Credit Information")
+            credit_history = st.selectbox("Credit History", [0, 1], format_func=lambda x: "No" if x == 0 else "Yes")
+
+            submitted = st.form_submit_button("Predict Loan Status")
+
+        if submitted:
+            user_input = {
+                'Gender': gender,
+                'Married': married,
+                'Dependents': dependents,
+                'Education': education,
+                'Self_Employed': self_employed,
+                'ApplicantIncome': applicant_income,
+                'CoapplicantIncome': coapplicant_income,
+                'LoanAmount': loan_amount,
+                'Loan_Amount_Term': loan_term,
+                'Credit_History': credit_history,
+                'Property_Area': property_area
+            }
+
+            prediction, probability = make_prediction(model, feature_names, preprocessing_mappings, user_input)
+
+            with col2:
+                st.header("Prediction Results")
+                if prediction == 1:
+                    st.markdown('<div class="prediction-box approved"><h3>Loan Approved</h3></div>', unsafe_allow_html=True)
+                else:
+                    st.markdown('<div class="prediction-box rejected"><h3>Loan Rejected</h3></div>', unsafe_allow_html=True)
+
+                if probability is not None:
+                    approval_prob = probability[1]
+                    rejection_prob = probability[0]
+                    confidence = max(probability)
+
+                    st.subheader("Prediction Probabilities")
+                    col_conf1, col_conf2 = st.columns(2)
+                    col_conf1.metric("Approval Probability", f"{approval_prob:.1%}")
+                    col_conf2.metric("Model Confidence", f"{confidence:.1%}")
+
+                    fig, ax = plt.subplots(figsize=(6, 3))
+                    ax.bar(['Rejected', 'Approved'], [rejection_prob, approval_prob], color=['#e53935', '#43a047'])
+                    ax.set_ylim(0, 1)
+                    ax.set_ylabel("Probability")
+                    st.pyplot(fig)
+
+                st.subheader("Application Summary")
+                summary_data = {
+                    "Total Income": f"₹{applicant_income + coapplicant_income:,}",
+                    "Loan Amount": f"₹{loan_amount:,}K",
+                    "Debt-to-Income Ratio": f"{loan_amount / (applicant_income + coapplicant_income) if (applicant_income + coapplicant_income) > 0 else 0:.3f}",
+                    "Education": education,
+                    "Property Area": property_area
+                }
+                for k, v in summary_data.items():
+                    st.text(f"{k}: {v}")
+
+    if not submitted:
+        with col2:
+            st.header("Model Performance")
+            st.markdown("""
+            <div class="metrics-box">
+            <strong>Accuracy:</strong> ~83%  
+            <strong>F1-Score:</strong> ~0.85  
+            <strong>Cross-Validation:</strong> 5-fold  
+            </div>
+            """, unsafe_allow_html=True)
+
+            st.subheader("Important Features")
+            st.markdown("""
+            - Credit History  
+            - Total Income  
+            - Debt-to-Income Ratio  
+            - Property Area  
+            - Education  
+            """)
+
+    st.markdown("---")
+    col_f1, col_f2, col_f3 = st.columns(3)
+    col_f1.markdown("Developed using: Python, Scikit-learn, XGBoost")
+    col_f2.markdown("Models Used: SVM, Random Forest, XGBoost")
+    col_f3.markdown("Deployment Target: Campus Recruitment")
+
+if __name__ == "__main__":
+    main()
