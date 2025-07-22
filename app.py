@@ -207,7 +207,7 @@ def main():
     col_f1, col_f2, col_f3 = st.columns(3)
     col_f1.markdown("Developed using: Python, Scikit-learn, XGBoost")
     col_f2.markdown("Models Used: SVM, Random Forest, XGBoost")
-    col_f3.markdown("Deployment Target: Campus Recruitment")
+    col_f3.markdown("Made by - Anurag Joshi")
 
 if __name__ == "__main__":
     main()
