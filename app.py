@@ -4,7 +4,7 @@ import pandas as pd
 import joblib
 
 # Load the model and encoders (adjust file names as needed)
-model = joblib.load('loan_model.joblib')
+model = joblib.load('best_loan_prediction_model.joblib')
 # Suppose you have label encoders or mappings as dictionaries
 with open('feature_mappings.joblib', 'rb') as f:
     feature_mappings = joblib.load(f)
