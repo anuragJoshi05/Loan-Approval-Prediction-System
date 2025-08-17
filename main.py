@@ -49,7 +49,7 @@ loan_dataset = loan_dataset.dropna()
 print(f"Rows after dropping missing values: {len(loan_dataset)}")
 
 # ============================================================================
-# FEATURE ENGINEERING (NEW!)
+# FEATURE ENGINEERING
 # ============================================================================
 
 print("\n Feature Engineering...")
@@ -169,7 +169,7 @@ for col in X_train.select_dtypes(include=['object', 'category']).columns:
     X_test[col] = le.transform(X_test[col].astype(str))
 
 # ============================================================================
-# MODEL TRAINING & COMPARISON (NEW!)
+# MODEL TRAINING & COMPARISON
 # ============================================================================
 
 print("\n Training Multiple Models...")
@@ -223,7 +223,7 @@ for name, model in models.items():
     print(f" {name} completed!")
 
 # ============================================================================
-# MODEL COMPARISON TABLE (NEW!)
+# MODEL COMPARISON TABLE 
 # ============================================================================
 
 print("\n MODEL COMPARISON RESULTS")
@@ -253,7 +253,7 @@ print(f"\n Best Model: {best_model_name}")
 print(f"Test Accuracy: {results[best_model_name]['test_accuracy']:.4f}")
 
 # ============================================================================
-# MODEL EVALUATION VISUALS (NEW!)
+# MODEL EVALUATION VISUALS 
 # ============================================================================
 
 print(f"\n Creating Evaluation Visuals for {best_model_name}...")
@@ -314,7 +314,7 @@ plt.tight_layout()
 plt.show()
 
 # ============================================================================
-# CLASSIFICATION REPORT (NEW!)
+# CLASSIFICATION REPORT 
 # ============================================================================
 
 print(f"\n CLASSIFICATION REPORT - {best_model_name}")
@@ -323,7 +323,7 @@ print(classification_report(Y_test, results[best_model_name]['test_predictions']
                           target_names=['Rejected', 'Approved']))
 
 # ============================================================================
-# SAVE BEST MODEL (NEW!)
+# SAVE BEST MODEL
 # ============================================================================
 
 print(f"\n Saving Best Model ({best_model_name})...")
@@ -351,7 +351,7 @@ print(" Feature names saved as: feature_names.joblib")
 print(" Preprocessing mappings saved as: preprocessing_mappings.joblib")
 
 # ============================================================================
-# PREDICTIVE SYSTEM DEMO (ENHANCED)
+# PREDICTIVE SYSTEM DEMO 
 # ============================================================================
 
 print("\n PREDICTIVE SYSTEM DEMO")
